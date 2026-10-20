@@ -37,6 +37,15 @@ else
     echo "CIVITAI_TOKEN fehlt - Civitai-Modelle uebersprungen"
 fi
 
+# ACE-Step 1.5 Turbo fuer Musik (ca. 10 GB; native ComfyUI-Nodes, Workflow siehe README).
+if [ "${DOWNLOAD_ACE_STEP:-1}" = "1" ]; then
+    ACE=https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files
+    dl "$ACE/diffusion_models/acestep_v1.5_turbo.safetensors" "$M/diffusion_models/acestep_v1.5_turbo.safetensors"
+    dl "$ACE/text_encoders/qwen_0.6b_ace15.safetensors" "$M/text_encoders/qwen_0.6b_ace15.safetensors"
+    dl "$ACE/text_encoders/qwen_1.7b_ace15.safetensors" "$M/text_encoders/qwen_1.7b_ace15.safetensors"
+    dl "$ACE/vae/ace_1.5_vae.safetensors" "$M/vae/ace_1.5_vae.safetensors"
+fi
+
 # MOSS-TTS 8B (16 GB) vorab laden, sonst passiert das beim ersten speak.
 # Die uebrigen TTS-Modelle laedt die Suite bei Bedarf selbst nach models/TTS.
 if [ "${DOWNLOAD_MOSS_8B:-1}" = "1" ]; then
