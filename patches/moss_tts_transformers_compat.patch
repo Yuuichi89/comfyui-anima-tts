@@ -1,0 +1,62 @@
+--- /workspace/runpod-slim/ComfyUI/custom_nodes/TTS-Audio-Suite/engines/moss_tts/impl/local_transformer/modeling_moss_tts.py.orig	2026-10-20 16:36:19.000000000 +0000
++++ /workspace/runpod-slim/ComfyUI/custom_nodes/TTS-Audio-Suite/engines/moss_tts/impl/local_transformer/modeling_moss_tts.py	2026-10-20 17:14:43.000000000 +0000
+@@ -1,4 +1,5 @@
+ import os
++import inspect
+ import copy
+ import torch
+ import torch.nn as nn
+@@ -237,14 +238,18 @@
+         # causal_mask = self._update_causal_mask( # ???
+         #     attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
+         # )
++        # create_causal_mask renamed `input_embeds` -> `inputs_embeds` (5.3) and dropped
++        # `cache_position` (later 5.x); pass only what the installed version accepts.
++        mask_params = inspect.signature(create_causal_mask).parameters
+         mask_kwargs = {
+             "config": self.config,
+-            "input_embeds": inputs_embeds,
++            "inputs_embeds" if "inputs_embeds" in mask_params else "input_embeds": inputs_embeds,
+             "attention_mask": attention_mask,
+-            "cache_position": cache_position,
+             "past_key_values": past_key_values,
+             "position_ids": position_ids,
+         }
++        if "cache_position" in mask_params:
++            mask_kwargs["cache_position"] = cache_position
+         causal_mask = create_causal_mask(**mask_kwargs),
+ 
+ 
+@@ -350,7 +355,12 @@
+         this_peer_finished = False
+         unfinished_sequences = torch.ones(batch_size, dtype=torch.long, device=input_ids.device) # (B, )
+         base_length = input_ids.shape[1]
+-        model_kwargs = self._get_initial_cache_position(cur_len, input_ids.device, model_kwargs)
++        # transformers >= 5.3 slices the inputs via `next_sequence_length` and no longer advances
++        # `cache_position`; the model then derives positions from the cache itself.
++        slice_by_length = "next_sequence_length" in inspect.signature(self.prepare_inputs_for_generation).parameters
++        if not slice_by_length:
++            model_kwargs = self._get_initial_cache_position(cur_len, input_ids.device, model_kwargs)
++        is_first_iteration = True
+         # model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
+ 
+         # 定义logits processor
+@@ -377,7 +387,17 @@
+         while self._has_unfinished_sequences(this_peer_finished, synced_gpus, device=input_ids.device):
+              # 准备模型输入
+             pbar.update()
+-            model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
++            if slice_by_length:
++                next_sequence_length = None if is_first_iteration or not model_kwargs.get("use_cache", True) else 1
++                model_inputs = self.prepare_inputs_for_generation(
++                    input_ids,
++                    next_sequence_length=next_sequence_length,
++                    is_first_iteration=is_first_iteration,
++                    **model_kwargs,
++                )
++                is_first_iteration = False
++            else:
++                model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
+             model_inputs.update({"output_attentions": output_attentions} if output_attentions else {})
+             model_inputs.update({"output_hidden_states": output_hidden_states} if output_hidden_states else {})
+             # 前向传递
