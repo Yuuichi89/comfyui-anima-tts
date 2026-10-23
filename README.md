@@ -44,6 +44,21 @@ Kein Token gehoert ins Image oder in dieses Repo.
 - ComfyUI neu starten: `/opt/scripts/restart_comfyui.sh`
 - Lokal: `REMOTE_PORT=8188 ./tunnel.sh <IP> <PORT>` (aus `comfyui-mcp`)
 
+## LoRA-Training (Anima 2.9B)
+
+Nicht fest im Image, damit der Start schnell bleibt. Bei Bedarf einmal:
+
+```
+/opt/scripts/setup_trainer.sh
+```
+
+Richtet kohya sd-scripts (Fork `gazingstars123/sd-scripts`, Branch `anima-2.9b-support`, festgelegter
+Commit) in `/workspace/lora/` ein, ~2 Minuten, venv ~1.6 GB. Die venv nutzt torch aus `/opt/venv` mit
+(kein zweiter torch-Download), hat aber eigene Pakete wie transformers 4.x. Zweiter Aufruf tut nichts.
+Training dann mit `/workspace/lora/venv/bin/accelerate launch ... anima_train_network.py
+--network_module=networks.lora_anima --network_train_unet_only ...`. Getestet auf RTX 6000 Ada:
+dim 32, AdamW8bit, ~1.2 s/Step bei 1024 px.
+
 ## Musik mit ACE-Step 1.5
 
 Workflow wie die ComfyUI-Vorlage `audio_ace_step_1_5_split`: `UNETLoader` (`acestep_v1.5_turbo`) ->
