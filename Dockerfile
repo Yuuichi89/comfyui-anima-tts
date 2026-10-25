@@ -11,7 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3.12 python3.12-venv python3.12-dev build-essential \
-        git curl ca-certificates openssh-server \
+        git curl ca-certificates openssh-server rsync \
         ffmpeg libsndfile1 libsamplerate0 libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/* \
     && python3.12 -m venv /opt/venv \
