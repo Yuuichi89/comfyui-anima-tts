@@ -16,16 +16,25 @@ dl() {
     else
         echo "lade: $2"
     fi
-    local auth=() rc
+    local auth=() rc attempt
     [ -n "${3:-}" ] && auth=(-H "Authorization: Bearer $3")
-    curl -fsSL --retry 3 -C - "${auth[@]}" -o "$2.part" "$1"
-    rc=$?
-    # 33: Server kann keine Teil-Downloads -> von vorn
-    if [ "$rc" = 33 ]; then
-        rm -f "$2.part"
-        curl -fsSL --retry 3 "${auth[@]}" -o "$2.part" "$1"
+    # Abgerissene Verbindungen (z. B. curl 18/56/92 bei grossen HF-Dateien) gleich weiterladen
+    for attempt in 1 2 3 4 5; do
+        curl -fsSL --retry 3 -C - "${auth[@]}" -o "$2.part" "$1"
         rc=$?
-    fi
+        # 33: Server kann keine Teil-Downloads -> von vorn
+        if [ "$rc" = 33 ]; then
+            rm -f "$2.part"
+            curl -fsSL --retry 3 "${auth[@]}" -o "$2.part" "$1"
+            rc=$?
+        fi
+        [ "$rc" = 0 ] && break
+        # 22: HTTP-Fehler (404, 401 ...) - erneut versuchen hilft nicht
+        [ "$rc" = 22 ] && break
+        [ "$attempt" = 5 ] && break
+        echo "Abbruch (curl $rc), Versuch $attempt/5 - setze in 10 s fort: $2"
+        sleep 10
+    done
     if [ "$rc" = 0 ]; then
         mv "$2.part" "$2"
     else
