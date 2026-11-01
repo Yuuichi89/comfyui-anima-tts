@@ -6,6 +6,8 @@ ueber einen SSH-Tunnel.
 
 Wird bei jedem Push auf `main` per GitHub Actions gebaut: `ghcr.io/yuuichi89/comfyui-anima-tts:latest`
 
+Fuer gpuhub.com (keine fremden Registries, eigenes Image per "Save Image") siehe [gpuhub/README.md](gpuhub/README.md).
+
 ## Inhalt
 
 | | Version |
