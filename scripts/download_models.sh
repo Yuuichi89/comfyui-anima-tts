@@ -60,12 +60,24 @@ fi
 
 # MOSS-TTS 8B (16 GB) vorab laden, sonst passiert das beim ersten speak.
 # Die uebrigen TTS-Modelle laedt die Suite bei Bedarf selbst nach models/TTS.
+# Per dl() statt snapshot_download: huggingface_hub >= 1.x setzt abgebrochene Downloads nicht fort
+# und laesst bei jedem Abbruch eine neue .incomplete-Datei liegen.
 if [ "${DOWNLOAD_MOSS_8B:-1}" = "1" ]; then
-    python - <<'EOF'
-from huggingface_hub import snapshot_download
-path = snapshot_download("OpenMOSS-Team/MOSS-TTS-v1.5", local_dir="/workspace/models/TTS/moss_tts/MOSS-TTS-v1.5")
-print("MOSS 8B bereit:", path)
-EOF
+    MOSS_REPO=OpenMOSS-Team/MOSS-TTS-v1.5
+    MOSS_DIR=$M/TTS/moss_tts/MOSS-TTS-v1.5
+    # Reste frueherer snapshot_download-Laeufe
+    rm -f "$MOSS_DIR"/.cache/huggingface/download/*.incomplete
+    files=$(curl -fsSL --retry 3 ${HF_TOKEN:+-H "Authorization: Bearer $HF_TOKEN"} \
+        "https://huggingface.co/api/models/$MOSS_REPO/revision/main" \
+        | grep -o '"rfilename":"[^"]*"' | cut -d'"' -f4)
+    if [ -z "$files" ]; then
+        echo "FEHLER: Dateiliste von $MOSS_REPO nicht abrufbar"
+    else
+        for f in $files; do
+            dl "https://huggingface.co/$MOSS_REPO/resolve/main/$f" "$MOSS_DIR/$f" "${HF_TOKEN:-}"
+        done
+        echo "MOSS 8B: $(ls "$MOSS_DIR" | wc -l) Dateien in $MOSS_DIR"
+    fi
 fi
 
 echo "=== Modell-Check fertig $(date '+%F %T')"
