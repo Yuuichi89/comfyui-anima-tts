@@ -9,7 +9,8 @@ echo "=== Modell-Check $(date '+%F %T')"
 # dl <url> <ziel> [bearer-token]
 # Ein abgebrochener Download (.part, z. B. nach Pod-Neustart) wird beim naechsten Lauf fortgesetzt.
 dl() {
-    if [ -s "$2" ]; then echo "vorhanden: $2"; return 0; fi
+    # Die Zieldatei entsteht erst nach erfolgreichem Download (aus .part), auch leere Dateien zaehlen
+    if [ -e "$2" ]; then echo "vorhanden: $2"; return 0; fi
     mkdir -p "$(dirname "$2")"
     if [ -s "$2.part" ]; then
         echo "setze fort: $2 ($(du -h "$2.part" | cut -f1) vorhanden)"
@@ -67,26 +68,32 @@ if [ "${DOWNLOAD_ACE_STEP:-1}" = "1" ]; then
     dl "$ACE/vae/ace_1.5_vae.safetensors" "$M/vae/ace_1.5_vae.safetensors"
 fi
 
-# MOSS-TTS 8B (16 GB) vorab laden, sonst passiert das beim ersten speak.
-# Die uebrigen TTS-Modelle laedt die Suite bei Bedarf selbst nach models/TTS.
-# Per dl() statt snapshot_download: huggingface_hub >= 1.x setzt abgebrochene Downloads nicht fort
-# und laesst bei jedem Abbruch eine neue .incomplete-Datei liegen.
-if [ "${DOWNLOAD_MOSS_8B:-1}" = "1" ]; then
-    MOSS_REPO=OpenMOSS-Team/MOSS-TTS-v1.5
-    MOSS_DIR=$M/TTS/moss_tts/MOSS-TTS-v1.5
+# hf_repo <repo> <zielordner>: alle Dateien eines Hugging-Face-Repos per dl() laden.
+# Statt snapshot_download: huggingface_hub >= 1.x setzt abgebrochene Downloads nicht fort und
+# laesst bei jedem Abbruch eine neue .incomplete-Datei liegen.
+hf_repo() {
+    local repo=$1 dir=$2 files f
     # Reste frueherer snapshot_download-Laeufe
-    rm -f "$MOSS_DIR"/.cache/huggingface/download/*.incomplete
+    rm -f "$dir"/.cache/huggingface/download/*.incomplete
     files=$(curl -fsSL --retry 3 ${HF_TOKEN:+-H "Authorization: Bearer $HF_TOKEN"} \
-        "https://huggingface.co/api/models/$MOSS_REPO/revision/main" \
+        "https://huggingface.co/api/models/$repo/revision/main" \
         | grep -o '"rfilename":"[^"]*"' | cut -d'"' -f4)
     if [ -z "$files" ]; then
-        echo "FEHLER: Dateiliste von $MOSS_REPO nicht abrufbar"
-    else
-        for f in $files; do
-            dl "https://huggingface.co/$MOSS_REPO/resolve/main/$f" "$MOSS_DIR/$f" "${HF_TOKEN:-}"
-        done
-        echo "MOSS 8B: $(ls "$MOSS_DIR" | wc -l) Dateien in $MOSS_DIR"
+        echo "FEHLER: Dateiliste von $repo nicht abrufbar"
+        return 1
     fi
+    for f in $files; do
+        dl "https://huggingface.co/$repo/resolve/main/$f" "$dir/$f" "${HF_TOKEN:-}"
+    done
+    echo "$repo: $(echo "$files" | wc -l) Dateien in $dir"
+}
+
+# MOSS-TTS 8B (16 GB) + Audio-Tokenizer (6.7 GB, braucht jede Sprachausgabe) vorab laden, sonst
+# passiert das beim ersten speak. Die uebrigen TTS-Modelle (z. B. SoundEffect v2, 11 GB) laedt
+# die Suite bei Bedarf selbst nach models/TTS.
+if [ "${DOWNLOAD_MOSS_8B:-1}" = "1" ]; then
+    hf_repo OpenMOSS-Team/MOSS-TTS-v1.5 "$M/TTS/moss_tts/MOSS-TTS-v1.5"
+    hf_repo OpenMOSS-Team/MOSS-Audio-Tokenizer "$M/TTS/moss_tts/MOSS-Audio-Tokenizer"
 fi
 
 echo "=== Modell-Check fertig $(date '+%F %T')"

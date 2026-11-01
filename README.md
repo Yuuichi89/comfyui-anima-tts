@@ -30,7 +30,7 @@ Fuer gpuhub.com (keine fremden Registries, eigenes Image per "Save Image") siehe
 | Ports | HTTP `8188`, TCP `22` |
 | Env | `PUBLIC_KEY` = SSH-Public-Key, `CIVITAI_TOKEN` = `{{ RUNPOD_SECRET_... }}` |
 | optional | `CIVITAI_MODELS` = eigene Civitai-Modellliste (siehe unten) |
-| optional | `DOWNLOAD_MOSS_8B=0`, um MOSS 8B (16 GB) nicht vorab zu laden |
+| optional | `DOWNLOAD_MOSS_8B=0`, um MOSS 8B + Audio-Tokenizer (zusammen ca. 23 GB) nicht vorab zu laden |
 | optional | `DOWNLOAD_ACE_STEP=0`, um ACE-Step (ca. 10 GB) nicht zu laden |
 
 `CIVITAI_MODELS`: Leerzeichen-getrennte Eintraege `<ordner unter models>/<dateiname>=<modelVersionId>`,

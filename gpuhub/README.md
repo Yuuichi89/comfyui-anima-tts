@@ -46,8 +46,11 @@ der Dateispeicher initialisiert ist) oder `/root/autodl-tmp/comfyui.env` kopiere
 `CIVITAI_TOKEN` eintragen. Gleiche Variablen wie bei RunPod (`CIVITAI_MODELS`, `DOWNLOAD_MOSS_8B`,
 `DOWNLOAD_ACE_STEP`), dazu `COMFYUI_PORT` und `COMFYUI_LISTEN`.
 
-Platz: MOSS 8B (16 GB) + ACE-Step (ca. 10 GB) + Anima/Civitai passen knapp auf die 50-GB-Gratis-
-Datenplatte. Bei mehr Modellen Datenplatte erweitern oder `DOWNLOAD_*=0` setzen.
+Platz (gemessen): vorab geladen werden ca. 40 GB (Anima + Civitai 7, ACE-Step 9,5,
+MOSS 8B + Audio-Tokenizer 23). Beim ersten Aufruf laedt die TTS-Suite selbst nach:
+SoundEffect v2 11 GB, Granite-ASR 4,5 GB. Mit allem ca. 55 GB -> Datenplatte 80 GB waehlen oder
+`DOWNLOAD_*=0` setzen. Erste Aufrufe auf neuer Datenplatte: `sound_effect` ca. 13 min,
+`transcribe` ca. 4 min (Download); danach Sekunden.
 
 ## Auf der Instanz
 
