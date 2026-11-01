@@ -7,17 +7,29 @@ M=/workspace/models
 echo "=== Modell-Check $(date '+%F %T')"
 
 # dl <url> <ziel> [bearer-token]
+# Ein abgebrochener Download (.part, z. B. nach Pod-Neustart) wird beim naechsten Lauf fortgesetzt.
 dl() {
     if [ -s "$2" ]; then echo "vorhanden: $2"; return 0; fi
     mkdir -p "$(dirname "$2")"
-    echo "lade: $2"
-    local auth=()
+    if [ -s "$2.part" ]; then
+        echo "setze fort: $2 ($(du -h "$2.part" | cut -f1) vorhanden)"
+    else
+        echo "lade: $2"
+    fi
+    local auth=() rc
     [ -n "${3:-}" ] && auth=(-H "Authorization: Bearer $3")
-    if curl -fsSL --retry 3 "${auth[@]}" -o "$2.part" "$1"; then
+    curl -fsSL --retry 3 -C - "${auth[@]}" -o "$2.part" "$1"
+    rc=$?
+    # 33: Server kann keine Teil-Downloads -> von vorn
+    if [ "$rc" = 33 ]; then
+        rm -f "$2.part"
+        curl -fsSL --retry 3 "${auth[@]}" -o "$2.part" "$1"
+        rc=$?
+    fi
+    if [ "$rc" = 0 ]; then
         mv "$2.part" "$2"
     else
-        rm -f "$2.part"
-        echo "FEHLER beim Download: $1"
+        echo "FEHLER (curl $rc) beim Download, Teil bleibt fuer den naechsten Versuch: $1"
     fi
 }
 
